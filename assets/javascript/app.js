@@ -9,46 +9,65 @@ var config = {
 
 firebase.initializeApp(config);
 
+//make firebase a variable
 var database = firebase.database();
-
+//grab the current time for the math of the train times
 var currentTime = moment();
-
-database.ref().on("child_added", function (childsnapshot) {
-    console.log(childsnapshot.val());
-    var name = childsnapshot.val().name;
-    var destination = childsnapshot.val().destination;
-    var firstTrain = childsnapshot.val().firstTrain;
-    var frequency = childsnapshot.val().frequency;
-    var min = childsnapshot.val().min;
-    var next = childsnapshot.val().next;
-
-    $("#trainTable > tbody").append("<tr><td>" + name + "</td><td>" + destination + "</td><td>" + frequency +
-        "</td><td>" + next + "</td><td>" + min + "</td></tr>")
-});
-
 
 
 database.ref().on("value", function (snapshot) {
-    console.log(snapshot);
 
 });
 
-$("addTrainBtn").on("click", function () {
-    name = $("#trainNameInput").val().trim();
-    destination = $("#destinationInput").val().trim();
-    firstTrain = $("#firstTrainInput").val().trim();
-    frequency = $("#frequencyInput").val().trim();
-    min = "";
-    next = "";
+//on button click load results
+$("#addTrainBtn").on("click", function () {
 
-    database.ref().push({
-        name: name,
-        destination: destination,
-        firstTrain: firstTrain,
-        frequency: frequency,
-        min: min,
-        next: next,
+    var trainName = $("#trainNameInput").val().trim();
+    var trainDestination = $("#destinationInput").val().trim();
+    var firstTrain = $("#timeInput").val().trim();
+    var trainFrequency = $("#frequencyInput").val().trim();
 
+    database.ref().on("child_added", function (childSnap) {
+
+        var name = childSnap.val().name;
+        var destination = childSnap.val().destination;
+        var firstTrain = childSnap.val().firstTrain;
+        var frequency = childSnap.val().frequency;
+        var min = childSnap.val().min;
+        var next = childSnap.val().next;
+
+        //add train information to the table
+        $("#trainTable > tbody").prepend("<tr><td>" + name + "</td><td>" + destination + "</td><td>" + frequency + "</td><td>" + next + "</td><td>" + min + "</td></tr>");
     });
 
+    //convert train time 
+    
+    //subtracts the first train time back a year to make sure it is before current time.
+    var firstTrainTime = moment(firstTrain, "hh:mm").subtract("1, years");
+    // the time difference between current time and the first train
+    var difference = currentTime.diff(moment(firstTrainTime), "minutes");
+    var remainder = difference % frequency;
+    var minUntilTrain = frequency - remainder;
+    var nextTrain = moment().add(minUntilTrain, "minutes").format("hh:mm a");
+    
+    //create a object for the new train
+    var newTrain = {
+        name: trainName,
+        destination: trainDestination,
+        firstTrain: firstTrain,
+        frequency: trainFrequency,
+        min: minUntilTrain,
+        next: nextTrain
+    }
+
+    console.log(newTrain);
+    //push new train to firebase
+    database.ref().push(newTrain);
+    //clear all inputs
+    $("#trainNameInput").val("");
+    $("#destinationInput").val("");
+    $("#timeInput").val("");
+    $("#frequencyInput").val("");
+
+    return false;
 });
